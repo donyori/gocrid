@@ -1,7 +1,6 @@
 package gocrid
 
 import (
-	"errors"
 	"math/rand"
 	"sync"
 	"time"
@@ -10,8 +9,6 @@ import (
 const charset = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM0123456789"
 
 var (
-	ErrRandExit error = errors.New("gocrid: rand is exit")
-
 	randByteC <-chan byte
 	randExitC chan<- struct{}
 	randLock  sync.RWMutex
@@ -29,6 +26,8 @@ func RandStart() {
 	}
 	rbc := make(chan byte, 64)
 	rec := make(chan struct{})
+	randByteC = rbc
+	randExitC = rec
 	go func(outC chan<- byte, exitC <-chan struct{}) {
 		defer close(outC)
 		random := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -44,8 +43,6 @@ func RandStart() {
 			}
 		}
 	}(rbc, rec)
-	randByteC = rbc
-	randExitC = rec
 }
 
 func RandExit() {
@@ -56,7 +53,7 @@ func RandExit() {
 	}
 	close(randExitC)
 	randExitC = nil
-	for _ = range randByteC {
+	for range randByteC {
 		// Drain randByteC.
 	}
 }

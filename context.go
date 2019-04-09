@@ -1,19 +1,6 @@
 package gocrid
 
-import (
-	"errors"
-	"net/http"
-	"sync"
-)
-
-var (
-	ErrNilContext            error = errors.New("gocrid: Context is nil")
-	ErrInvalidContext        error = errors.New("gocrid: Context is invalid")
-	ErrContextAlreadyWritten error = errors.New("gocrid: Context has already written")
-
-	ErrAlreadyLogin error = errors.New("gocrid: user has already login")
-	ErrNotLogin     error = errors.New("gocrid: user is NOT login")
-)
+import "net/http"
 
 type WriteRespFunc func(http.ResponseWriter) bool
 
@@ -23,16 +10,20 @@ type Context struct {
 	req *http.Request
 	rw  http.ResponseWriter
 
-	reqCookie  *http.Cookie
 	respCookie *http.Cookie
 
 	id    string
 	uInfo *userInfo
 
-	isWritten            bool
-	beforeWriteRespQueue []WriteRespFunc
-	afterWriteRespQueue  []WriteRespFunc
-	writeLock            sync.RWMutex
+	beforeQueue []WriteRespFunc
+	afterQueue  []WriteRespFunc
+}
+
+func (c *Context) GetRequest() *http.Request {
+	if c == nil {
+		return nil
+	}
+	return c.req
 }
 
 func (c *Context) IsLogin() bool {
@@ -40,12 +31,6 @@ func (c *Context) IsLogin() bool {
 }
 
 func (c *Context) GetId() (id string, err error) {
-	if c == nil {
-		return "", ErrNilContext
-	}
-	if c.manager == nil {
-		return "", ErrInvalidContext
-	}
 	if c.uInfo == nil {
 		return "", ErrNotLogin
 	}
@@ -53,12 +38,6 @@ func (c *Context) GetId() (id string, err error) {
 }
 
 func (c *Context) GetUsername() (username string, err error) {
-	if c == nil {
-		return "", ErrNilContext
-	}
-	if c.manager == nil {
-		return "", ErrInvalidContext
-	}
 	if c.uInfo == nil {
 		return "", ErrNotLogin
 	}
@@ -66,12 +45,6 @@ func (c *Context) GetUsername() (username string, err error) {
 }
 
 func (c *Context) GetHost() (host string, err error) {
-	if c == nil {
-		return "", ErrNilContext
-	}
-	if c.manager == nil {
-		return "", ErrInvalidContext
-	}
 	if c.uInfo == nil {
 		return "", ErrNotLogin
 	}
@@ -79,12 +52,6 @@ func (c *Context) GetHost() (host string, err error) {
 }
 
 func (c *Context) Login(username string) error {
-	if c == nil {
-		return ErrNilContext
-	}
-	if c.manager == nil {
-		return ErrInvalidContext
-	}
 	if c.uInfo != nil {
 		return ErrAlreadyLogin
 	}
@@ -98,12 +65,6 @@ func (c *Context) Login(username string) error {
 }
 
 func (c *Context) Logout() error {
-	if c == nil {
-		return ErrNilContext
-	}
-	if c.manager == nil {
-		return ErrInvalidContext
-	}
 	if c.uInfo == nil {
 		return ErrNotLogin
 	}
@@ -115,12 +76,6 @@ func (c *Context) Logout() error {
 }
 
 func (c *Context) ResetTimer() error {
-	if c == nil {
-		return ErrNilContext
-	}
-	if c.manager == nil {
-		return ErrInvalidContext
-	}
 	if c.uInfo == nil {
 		return ErrNotLogin
 	}
@@ -129,74 +84,28 @@ func (c *Context) ResetTimer() error {
 	return nil
 }
 
-func (c *Context) IsWritten() bool {
-	if c == nil || c.manager == nil {
-		return false
-	}
-	c.writeLock.RLock()
-	defer c.writeLock.RUnlock()
-	return c.isWritten
+// Write response before writing the Cookie.
+func (c *Context) BeforeWriteResp(f WriteRespFunc) {
+	c.beforeQueue = append(c.beforeQueue, f)
 }
 
-func (c *Context) BeforeWriteResp(f func(http.ResponseWriter) bool) error {
-	if c == nil {
-		return ErrNilContext
-	}
-	if c.manager == nil {
-		return ErrInvalidContext
-	}
-	c.writeLock.Lock()
-	defer c.writeLock.Unlock()
-	if c.isWritten {
-		return ErrContextAlreadyWritten
-	}
-	c.beforeWriteRespQueue = append(c.beforeWriteRespQueue, WriteRespFunc(f))
-	return nil
+// Write response after writing the Cookie.
+func (c *Context) AfterWriteResp(f WriteRespFunc) {
+	c.afterQueue = append(c.afterQueue, f)
 }
 
-func (c *Context) AfterWriteResp(f func(http.ResponseWriter) bool) error {
-	if c == nil {
-		return ErrNilContext
-	}
-	if c.manager == nil {
-		return ErrInvalidContext
-	}
-	c.writeLock.Lock()
-	defer c.writeLock.Unlock()
-	if c.isWritten {
-		return ErrContextAlreadyWritten
-	}
-	c.afterWriteRespQueue = append(c.afterWriteRespQueue, WriteRespFunc(f))
-	return nil
-}
-
-func (c *Context) Write() error {
-	if c == nil {
-		return ErrNilContext
-	}
-	if c.manager == nil {
-		return ErrInvalidContext
-	}
-	c.writeLock.Lock()
-	defer c.writeLock.Unlock()
-	if c.isWritten {
-		return ErrContextAlreadyWritten
-	}
-	defer func() {
-		c.isWritten = true
-	}()
-	for _, wrf := range c.beforeWriteRespQueue {
+func (c *Context) write() {
+	for _, wrf := range c.beforeQueue {
 		if !wrf(c.rw) {
-			return nil
+			return
 		}
 	}
 	if c.respCookie != nil {
 		http.SetCookie(c.rw, c.respCookie)
 	}
-	for _, wrf := range c.afterWriteRespQueue {
+	for _, wrf := range c.afterQueue {
 		if !wrf(c.rw) {
-			return nil
+			return
 		}
 	}
-	return nil
 }

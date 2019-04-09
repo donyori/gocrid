@@ -1,18 +1,11 @@
 package gocrid
 
-import (
-	"errors"
-	"net/http"
-)
-
 type Handler interface {
-	Handle(*http.Request, *Context)
+	Handle(*Context, error)
 }
 
-type HandlerFunc func(*http.Request, *Context)
+type HandlerFunc func(*Context, error)
 
-var ErrNilHandler error = errors.New("gocrid: Handler is nil")
-
-func (f HandlerFunc) Handle(r *http.Request, ctx *Context) {
-	f(r, ctx)
+func (f HandlerFunc) Handle(ctx *Context, err error) {
+	f(ctx, err)
 }

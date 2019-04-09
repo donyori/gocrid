@@ -1,139 +1,84 @@
 package gocrid
 
 import (
-	"errors"
 	"net"
 	"net/http"
 	"sync"
 	"time"
 )
 
-type userInfo struct {
-	username     string
-	timer        *time.Timer
-	cleanFinishC <-chan struct{}
-	host         string
-}
-
 type Manager struct {
 	serveMux      *http.ServeMux
 	settings      Settings
 	idUserInfoMap sync.Map
-	initLock      sync.RWMutex
 }
-
-var (
-	ErrNilManager         error = errors.New("gocrid: Manager is nil")
-	ErrManagerAlreadyInit error = errors.New("gocrid: Manager has already initialized")
-	ErrManagerNotInit     error = errors.New("gocrid: Manager is NOT initialized")
-	ErrHostBindingDisable error = errors.New("gocrid: host binding is disable")
-)
 
 func NewManager(serveMux *http.ServeMux, settings *Settings) *Manager {
-	m := new(Manager)
-	m.Init(serveMux, settings)
-	return m
-}
-
-func (m *Manager) IsInitialized() bool {
-	if m == nil {
-		return false
-	}
-	m.initLock.RLock()
-	defer m.initLock.RUnlock()
-	return m.serveMux != nil
-}
-
-func (m *Manager) Init(serveMux *http.ServeMux, settings *Settings) error {
-	if m == nil {
-		return ErrNilManager
-	}
-	m.initLock.Lock()
-	defer m.initLock.Unlock()
-	if m.serveMux != nil {
-		return ErrManagerAlreadyInit
-	}
 	if serveMux == nil {
 		serveMux = http.DefaultServeMux
 	}
 	if settings == nil {
 		settings = NewSettings()
 	}
-	m.serveMux = serveMux
-	m.settings = *settings
+	m := &Manager{
+		serveMux: serveMux,
+		settings: *settings,
+	}
 	m.settings.FillEmptyFields()
-	return nil
+	return m
 }
 
-func (m *Manager) Handle(pattern string, handler Handler) error {
-	if m == nil {
-		return ErrNilManager
-	}
-	if !m.IsInitialized() {
-		return ErrManagerNotInit
-	}
-	if handler == nil {
-		return ErrNilHandler
-	}
+func (m *Manager) Handle(pattern string, handler Handler) {
 	m.serveMux.HandleFunc(pattern,
 		func(w http.ResponseWriter, r *http.Request) {
 			// Parse request.
-			ctx, _ := m.ParseRequest(w, r) // Ignore error because it must be nil.
+			ctx, err := m.parseRequest(w, r)
 			// Call handler.
-			handler.Handle(r, ctx)
+			handler.Handle(ctx, err)
 			// Write context to response.
-			if !ctx.IsWritten() {
-				ctx.Write() // Ignore error.
-			}
+			ctx.write()
 		})
-	return nil
 }
 
-func (m *Manager) HandleFunc(pattern string,
-	handler func(*http.Request, *Context)) error {
-	return m.Handle(pattern, HandlerFunc(handler))
+func (m *Manager) HandleFunc(pattern string, handler func(*Context, error)) {
+	m.Handle(pattern, HandlerFunc(handler))
 }
 
-func (m *Manager) ParseRequest(w http.ResponseWriter, r *http.Request) (
+func (m *Manager) parseRequest(w http.ResponseWriter, r *http.Request) (
 	context *Context, err error) {
-	if m == nil {
-		return nil, ErrNilManager
-	}
-	if !m.IsInitialized() {
-		return nil, ErrManagerNotInit
-	}
 	context = &Context{
-		manager:   m,
-		req:       r,
-		rw:        w,
-		isWritten: false,
+		manager: m,
+		req:     r,
+		rw:      w,
 	}
 	cookie, err := r.Cookie(m.settings.CookieName)
 	if err != nil || cookie == nil {
-		return context, nil
+		if err == http.ErrNoCookie {
+			err = nil
+		}
+		return
 	}
-	err = nil
-	context.reqCookie = cookie
 	id := cookie.Value
 	infoItf, ok := m.idUserInfoMap.Load(id)
 	if !ok {
 		context.respCookie = m.newCookieForDelete()
-		return context, nil
+		return
 	}
 	info := infoItf.(*userInfo)
 	if m.settings.EnableHostBinding {
-		host, err := m.getRemoteHost(r)
+		var host string
+		host, err = m.getRemoteHost(r)
 		if err != nil {
-			return nil, err
+			return
 		}
 		if host != info.host {
 			context.respCookie = m.newCookieForDelete()
-			return context, nil
+			return
 		}
 	}
 	context.id = id
 	context.uInfo = info
-	return context, nil
+	return
 }
 
 func (m *Manager) getRemoteHost(r *http.Request) (host string, err error) {

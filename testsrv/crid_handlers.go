@@ -7,7 +7,15 @@ import (
 	"github.com/donyori/gocrid"
 )
 
-func defaultHandler(r *http.Request, ctx *gocrid.Context) {
+func defaultHandler(ctx *gocrid.Context, err error) {
+	if err != nil {
+		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return false
+		})
+		return
+	}
+	r := ctx.GetRequest()
 	if r.URL.Path != "/" {
 		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
 			http.NotFound(w, r)
@@ -54,14 +62,22 @@ func defaultHandler(r *http.Request, ctx *gocrid.Context) {
 	}
 }
 
-func loginHandler(r *http.Request, ctx *gocrid.Context) {
+func loginHandler(ctx *gocrid.Context, err error) {
+	if err != nil {
+		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return false
+		})
+		return
+	}
 	if ctx.IsLogin() {
 		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
 			fmt.Fprintln(w, "Already login.")
 			return true
 		})
 	} else {
-		err := r.ParseForm()
+		r := ctx.GetRequest()
+		err = r.ParseForm()
 		if err != nil {
 			ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -109,9 +125,16 @@ func loginHandler(r *http.Request, ctx *gocrid.Context) {
 	}
 }
 
-func logoutHandler(r *http.Request, ctx *gocrid.Context) {
+func logoutHandler(ctx *gocrid.Context, err error) {
+	if err != nil {
+		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return false
+		})
+		return
+	}
 	if ctx.IsLogin() {
-		err := ctx.Logout()
+		err = ctx.Logout()
 		if err != nil {
 			ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
