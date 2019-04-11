@@ -9,7 +9,7 @@ import (
 
 func defaultHandler(ctx *gocrid.Context, err error) {
 	if err != nil {
-		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+		ctx.RespA(func(w http.ResponseWriter) bool {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return false
 		})
@@ -17,7 +17,7 @@ func defaultHandler(ctx *gocrid.Context, err error) {
 	}
 	r := ctx.GetRequest()
 	if r.URL.Path != "/" {
-		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+		ctx.RespA(func(w http.ResponseWriter) bool {
 			http.NotFound(w, r)
 			return false
 		})
@@ -26,7 +26,7 @@ func defaultHandler(ctx *gocrid.Context, err error) {
 	if ctx.IsLogin() {
 		id, err := ctx.GetId()
 		if err != nil {
-			ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+			ctx.RespA(func(w http.ResponseWriter) bool {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return false
 			})
@@ -34,7 +34,7 @@ func defaultHandler(ctx *gocrid.Context, err error) {
 		}
 		username, err := ctx.GetUsername()
 		if err != nil {
-			ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+			ctx.RespA(func(w http.ResponseWriter) bool {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return false
 			})
@@ -42,20 +42,20 @@ func defaultHandler(ctx *gocrid.Context, err error) {
 		}
 		host, err := ctx.GetHost()
 		if err != nil {
-			ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+			ctx.RespA(func(w http.ResponseWriter) bool {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return false
 			})
 			return
 		}
-		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+		ctx.RespA(func(w http.ResponseWriter) bool {
 			fmt.Fprintln(w, "ID:", id)
 			fmt.Fprintln(w, "Username:", username)
 			fmt.Fprintln(w, "Host:", host)
 			return true
 		})
 	} else {
-		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+		ctx.RespA(func(w http.ResponseWriter) bool {
 			fmt.Fprintln(w, "Not login.")
 			return true
 		})
@@ -64,14 +64,14 @@ func defaultHandler(ctx *gocrid.Context, err error) {
 
 func loginHandler(ctx *gocrid.Context, err error) {
 	if err != nil {
-		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+		ctx.RespA(func(w http.ResponseWriter) bool {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return false
 		})
 		return
 	}
 	if ctx.IsLogin() {
-		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+		ctx.RespA(func(w http.ResponseWriter) bool {
 			fmt.Fprintln(w, "Already login.")
 			return true
 		})
@@ -79,7 +79,7 @@ func loginHandler(ctx *gocrid.Context, err error) {
 		r := ctx.GetRequest()
 		err = r.ParseForm()
 		if err != nil {
-			ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+			ctx.RespA(func(w http.ResponseWriter) bool {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return false
 			})
@@ -88,37 +88,37 @@ func loginHandler(ctx *gocrid.Context, err error) {
 		username := r.FormValue("username")
 		err = ctx.Login(username)
 		if err != nil {
-			ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+			ctx.RespA(func(w http.ResponseWriter) bool {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return false
 			})
 			return
 		}
-		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+		ctx.RespA(func(w http.ResponseWriter) bool {
 			fmt.Fprintln(w, "Login successfully.")
 			return true
 		})
 		id, err := ctx.GetId()
 		if err != nil {
-			ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+			ctx.RespA(func(w http.ResponseWriter) bool {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return false
 			})
 			return
 		}
-		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+		ctx.RespA(func(w http.ResponseWriter) bool {
 			fmt.Fprintln(w, "ID:", id)
 			return true
 		})
 		host, err := ctx.GetHost()
 		if err != nil {
-			ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+			ctx.RespA(func(w http.ResponseWriter) bool {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return false
 			})
 			return
 		}
-		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+		ctx.RespA(func(w http.ResponseWriter) bool {
 			fmt.Fprintln(w, "Host:", host)
 			return true
 		})
@@ -127,7 +127,7 @@ func loginHandler(ctx *gocrid.Context, err error) {
 
 func logoutHandler(ctx *gocrid.Context, err error) {
 	if err != nil {
-		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+		ctx.RespA(func(w http.ResponseWriter) bool {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return false
 		})
@@ -136,18 +136,18 @@ func logoutHandler(ctx *gocrid.Context, err error) {
 	if ctx.IsLogin() {
 		err = ctx.Logout()
 		if err != nil {
-			ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+			ctx.RespA(func(w http.ResponseWriter) bool {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return false
 			})
 			return
 		}
-		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+		ctx.RespA(func(w http.ResponseWriter) bool {
 			fmt.Fprintln(w, "Logout successfully.")
 			return true
 		})
 	} else {
-		ctx.AfterWriteResp(func(w http.ResponseWriter) bool {
+		ctx.RespA(func(w http.ResponseWriter) bool {
 			fmt.Fprintln(w, "Not login.")
 			return true
 		})

@@ -17,6 +17,8 @@ type Context struct {
 
 	beforeQueue []WriteRespFunc
 	afterQueue  []WriteRespFunc
+
+	isAfterSetCookie bool
 }
 
 func (c *Context) GetRequest() *http.Request {
@@ -52,6 +54,9 @@ func (c *Context) GetHost() (host string, err error) {
 }
 
 func (c *Context) Login(username string) error {
+	if c.isAfterSetCookie {
+		return newUnallowedOperationError("login", "after setting cookie")
+	}
 	if c.uInfo != nil {
 		return ErrAlreadyLogin
 	}
@@ -65,6 +70,9 @@ func (c *Context) Login(username string) error {
 }
 
 func (c *Context) Logout() error {
+	if c.isAfterSetCookie {
+		return newUnallowedOperationError("logout", "after setting cookie")
+	}
 	if c.uInfo == nil {
 		return ErrNotLogin
 	}
@@ -76,6 +84,9 @@ func (c *Context) Logout() error {
 }
 
 func (c *Context) ResetTimer() error {
+	if c.isAfterSetCookie {
+		return newUnallowedOperationError("reset timer", "after setting cookie")
+	}
 	if c.uInfo == nil {
 		return ErrNotLogin
 	}
@@ -85,16 +96,17 @@ func (c *Context) ResetTimer() error {
 }
 
 // Write response before writing the Cookie.
-func (c *Context) BeforeWriteResp(f WriteRespFunc) {
+func (c *Context) RespB(f WriteRespFunc) {
 	c.beforeQueue = append(c.beforeQueue, f)
 }
 
 // Write response after writing the Cookie.
-func (c *Context) AfterWriteResp(f WriteRespFunc) {
+func (c *Context) RespA(f WriteRespFunc) {
 	c.afterQueue = append(c.afterQueue, f)
 }
 
 func (c *Context) write() {
+	c.isAfterSetCookie = false
 	for _, wrf := range c.beforeQueue {
 		if !wrf(c.rw) {
 			return
@@ -102,7 +114,9 @@ func (c *Context) write() {
 	}
 	if c.respCookie != nil {
 		http.SetCookie(c.rw, c.respCookie)
+		c.respCookie = nil
 	}
+	c.isAfterSetCookie = true
 	for _, wrf := range c.afterQueue {
 		if !wrf(c.rw) {
 			return
