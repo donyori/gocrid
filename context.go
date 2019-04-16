@@ -55,7 +55,7 @@ func (c *Context) GetHost() (host string, err error) {
 
 func (c *Context) Login(username string) error {
 	if c.isAfterSetCookie {
-		return newUnallowedOperationError("login", "after setting cookie")
+		return NewUnallowedOperationError("login", "after setting cookie")
 	}
 	if c.uInfo != nil {
 		return ErrAlreadyLogin
@@ -71,7 +71,7 @@ func (c *Context) Login(username string) error {
 
 func (c *Context) Logout() error {
 	if c.isAfterSetCookie {
-		return newUnallowedOperationError("logout", "after setting cookie")
+		return NewUnallowedOperationError("logout", "after setting cookie")
 	}
 	if c.uInfo == nil {
 		return ErrNotLogin
@@ -85,7 +85,7 @@ func (c *Context) Logout() error {
 
 func (c *Context) ResetTimer() error {
 	if c.isAfterSetCookie {
-		return newUnallowedOperationError("reset timer", "after setting cookie")
+		return NewUnallowedOperationError("reset timer", "after setting cookie")
 	}
 	if c.uInfo == nil {
 		return ErrNotLogin

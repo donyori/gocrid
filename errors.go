@@ -19,7 +19,7 @@ var (
 	ErrRandExit error = errors.New("gocrid: rand is exit")
 )
 
-func newUnallowedOperationError(opName string, cond string) error {
+func NewUnallowedOperationError(opName string, cond string) error {
 	opName = strings.TrimSpace(opName)
 	if opName == "" {
 		opName = "operation"
