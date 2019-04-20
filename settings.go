@@ -3,7 +3,6 @@ package gocrid
 import (
 	"encoding/json"
 	"io/ioutil"
-	"os"
 	"time"
 )
 
@@ -35,12 +34,7 @@ func NewSettings() *Settings {
 }
 
 func LoadSettings(filename string) (settings *Settings, err error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close() // Ignore error.
-	data, err := ioutil.ReadAll(file)
+	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
