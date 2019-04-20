@@ -8,16 +8,16 @@ import (
 )
 
 type Settings struct {
-	IdPrefix          string        `json:"id_prefix"`
-	IdBodyLength      int           `json:"id_body_length"`
-	MaxAge            time.Duration `json:"max_age"`
-	EnableHostBinding bool          `json:"enable_host_binding"`
+	IdPrefix          string        `json:"id_prefix,omitempty"`
+	IdBodyLength      int           `json:"id_body_length,omitempty"`
+	MaxAge            time.Duration `json:"max_age,omitempty"`
+	EnableHostBinding bool          `json:"enable_host_binding,omitempty"`
 
-	CookieName     string `json:"cookie_name"`
-	CookiePath     string `json:"cookie_path"`
-	CookieDomain   string `json:"cookie_domain"`
-	CookieSecure   bool   `json:"cookie_secure"`
-	CookieHttpOnly bool   `json:"cookie_http_only"`
+	CookieName     string `json:"cookie_name,omitempty"`
+	CookiePath     string `json:"cookie_path,omitempty"`
+	CookieDomain   string `json:"cookie_domain,omitempty"`
+	CookieSecure   bool   `json:"cookie_secure,omitempty"`
+	CookieHttpOnly bool   `json:"cookie_http_only,omitempty"`
 }
 
 func NewSettings() *Settings {
